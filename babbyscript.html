@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>babbyscript</title>
+<style>
+  :root {
+    --bg: #0f0f11;
+    --panel: #17171a;
+    --card: #1e1e22;
+    --border: #2e2e34;
+    --border2: #3e3e46;
+    --text: #e8e8f0;
+    --muted: #7a7a8c;
+    --faint: #3a3a44;
+    --green: #4ade80;
+    --green-dim: #166534;
+    --green-bg: #052010;
+    --blue: #60a5fa;
+    --blue-dim: #1e3a5f;
+    --red: #f87171;
+    --red-bg: #200808;
+    --amber: #fbbf24;
+    --purple: #a78bfa;
+    --teal: #2dd4bf;
+    --accent: #4ade80;
+    --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', 'Menlo', monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    overflow: hidden;
+  }
+
+  /* ── Layout ── */
+  .app {
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    height: 100vh;
+  }
+
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+
+  .logo {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--green);
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--muted); font-weight: 400; }
+
+  .titlebar-spacer { flex: 1; }
+
+  .tab-bar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .tab {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .tab:hover { background: var(--faint); color: var(--text); }
+  .tab.active { background: var(--card); color: var(--text); }
+
+  .run-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.12s;
+  }
+
+  .run-btn:hover { opacity: 0.85; }
+  .run-btn svg { width: 14px; height: 14px; }
+
+  .clear-btn {
+    padding: 6px 12px;
+    background: none;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+  }
+
+  .clear-btn:hover { border-color: var(--border2); color: var(--text); }
+
+  /* ── Main area ── */
+  .main {
+    display: grid;
+    grid-template-columns: 200px 1fr 300px;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sidebar-section {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0 14px 8px;
+  }
+
+  .snippet-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 14px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .snippet-btn:hover { background: var(--faint); }
+
+  .snippet-kw { color: var(--green); }
+  .snippet-val { color: var(--amber); }
+  .snippet-muted { color: var(--muted); }
+
+  /* ── Editor panel ── */
+  .editor-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .editor-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .file-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--amber);
+  }
+
+  .editor-wrap {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .line-nums {
+    padding: 14px 0 14px 12px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--faint);
+    text-align: right;
+    min-width: 36px;
+    user-select: none;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  #editor {
+    flex: 1;
+    background: var(--bg);
+    color: var(--text);
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 14px 16px;
+    caret-color: var(--green);
+    tab-size: 2;
+    overflow-y: auto;
+  }
+
+  #editor::selection { background: #2a4a2a; }
+
+  /* ── Right panel ── */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .output-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.2s;
+  }
+
+  .status-dot.ok { background: var(--green); }
+  .status-dot.err { background: var(--red); }
+  .status-dot.running { background: var(--amber); animation: pulse 0.6s ease-in-out infinite alternate; }
+
+  @keyframes pulse { to { opacity: 0.3; } }
+
+  #output {
+    flex: 1;
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.8;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .out-line { display: block; }
+  .out-ok { color: var(--green); }
+  .out-err { color: var(--red); }
+  .out-num { color: var(--blue); }
+  .out-bool { color: var(--purple); }
+  .out-arr { color: var(--teal); }
+  .out-empty { color: var(--muted); font-style: italic; }
+
+  .cheatsheet {
+    border-top: 1px solid var(--border);
+    padding: 12px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    display: none;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .cheatsheet.visible { display: block; }
+
+  .cheat-title {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .cheat-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    margin-bottom: 2px;
+    align-items: baseline;
+  }
+
+  .cheat-kw { font-family: var(--font-mono); color: var(--green); white-space: nowrap; }
+  .cheat-desc { color: var(--muted); }
+
+  /* ── Panels in right column ── */
+  .panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+
+  .ptab {
+    font-size: 12px;
+    padding: 7px 14px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.1s;
+    font-family: var(--font-sans);
+  }
+
+  .ptab:hover { color: var(--text); }
+  .ptab.active { color: var(--text); border-bottom-color: var(--green); }
+
+  .panel-content { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .panel-content.active { display: flex; }
+
+  /* ── Examples ── */
+  .examples-list { padding: 10px; overflow-y: auto; flex: 1; }
+
+  .example-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+
+  .example-card:hover { border-color: var(--border2); }
+  .example-title { font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+  .example-desc { font-size: 11px; color: var(--muted); }
+
+  /* ── Vars panel ── */
+  .vars-panel { padding: 10px; overflow-y: auto; flex: 1; font-family: var(--font-mono); font-size: 12px; }
+  .var-row { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+  .var-name { color: var(--blue); flex: 0 0 auto; }
+  .var-val { color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .var-type { color: var(--muted); font-size: 10px; flex: 0 0 auto; }
+  .vars-empty { color: var(--muted); font-size: 12px; padding: 8px 0; font-style: italic; }
+
+  /* ── Scrollbar styling ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+
+  /* ── Error highlight ── */
+  .err-banner {
+    display: none;
+    padding: 8px 14px;
+    background: var(--red-bg);
+    border-top: 1px solid #4a1010;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--red);
+  }
+
+  .err-banner.show { display: block; }
+
+  .kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    background: var(--faint);
+    border-radius: 3px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="logo">babby<span>script</span></div>
+    <div class="tab-bar">
+      <button class="tab active" id="tab-editor" onclick="switchTab('editor')">editor</button>
+      <button class="tab" id="tab-ref" onclick="switchTab('ref')">reference</button>
+    </div>
+    <div class="titlebar-spacer"></div>
+    <span style="font-size:11px;color:var(--muted);margin-right:8px"><span class="kbd">Ctrl+Enter</span> to run</span>
+    <button class="clear-btn" onclick="clearAll()">clear</button>
+    <button class="run-btn" onclick="runCode()">
+      <svg viewBox="0 0 14 14" fill="currentColor"><path d="M2 1.5l10 5.5-10 5.5V1.5z"/></svg>
+      run
+    </button>
+  </div>
+
+  <!-- Editor view -->
+  <div class="main" id="view-editor">
+
+    <!-- Sidebar: snippets -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">snippets</div>
+        <button class="snippet-btn" onclick="insertSnippet('remember name is \"hello\"')"><span class="snippet-kw">remember</span> name <span class="snippet-kw">is</span> <span class="snippet-val">"hello"</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('say name')"><span class="snippet-kw">say</span> name</button>
+        <button class="snippet-btn" onclick="insertSnippet('if x is y\n  say \"yes!\"\ndone')"><span class="snippet-kw">if</span> x <span class="snippet-kw">is</span> y</button>
+        <button class="snippet-btn" onclick="insertSnippet('if x is more than y\n  say \"bigger\"\notherwise\n  say \"smaller\"\ndone')"><span class="snippet-kw">if</span> <span class="snippet-muted">…</span> <span class="snippet-kw">otherwise</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('repeat 3 times\n  say \"hello!\"\ndone')"><span class="snippet-kw">repeat</span> 3 <span class="snippet-kw">times</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('for each item in things\n  say item\ndone')"><span class="snippet-kw">for each</span> item</button>
+        <button class="snippet-btn" onclick="insertSnippet('teach greet someone\n  say \"hi,\" someone\ndone\n\ndo greet \"world\"')"><span class="snippet-kw">teach</span> a trick</button>
+        <button class="snippet-btn" onclick="insertSnippet('remember colors is red green blue\nadd yellow to colors\nsay colors')">list <span class="snippet-kw">add</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('remember count is 1\nrepeat 5 times\n  say count\n  remember count is count + 1\ndone')">counter loop</button>
+      </div>
+
+      <div class="sidebar-section" style="flex:1;overflow-y:auto">
+        <div class="sidebar-title">keywords</div>
+        <button class="snippet-btn" onclick="insertSnippet('remember ')"><span class="snippet-kw">remember</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('say ')"><span class="snippet-kw">say</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('if ')"><span class="snippet-kw">if</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('otherwise\n')"><span class="snippet-kw">otherwise</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('done\n')"><span class="snippet-kw">done</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('repeat  times\n')"><span class="snippet-kw">repeat</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('for each ')"><span class="snippet-kw">for each</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('teach ')"><span class="snippet-kw">teach</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('do ')"><span class="snippet-kw">do</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('add  to ')"><span class="snippet-kw">add</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('remove  from ')"><span class="snippet-kw">remove</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('ask ')"><span class="snippet-kw">ask</span></button>
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div class="editor-panel">
+      <div class="editor-header">
+        <div class="file-dot"></div>
+        <span>my_program.babby</span>
+      </div>
+      <div class="editor-wrap">
+        <div class="line-nums" id="line-nums">1</div>
+        <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+          placeholder="start typing your babbyscript here...&#10;&#10;try:  say &quot;hello, world!&quot;"
+          oninput="onEditorInput()" onkeydown="onEditorKey(event)" onscroll="syncScroll()"></textarea>
+      </div>
+    </div>
+
+    <!-- Right panel: output + examples + vars -->
+    <div class="right-panel">
+      <div class="panel-tabs">
+        <button class="ptab active" id="ptab-out" onclick="switchPTab('out')">output</button>
+        <button class="ptab" id="ptab-vars" onclick="switchPTab('vars')">variables</button>
+        <button class="ptab" id="ptab-ex" onclick="switchPTab('ex')">examples</button>
+      </div>
+
+      <!-- Output -->
+      <div class="panel-content active" id="panel-out">
+        <div class="output-header">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">ready</span>
+        </div>
+        <div id="output"><span class="out-empty">press run to see output here</span></div>
+        <div class="err-banner" id="err-banner"></div>
+      </div>
+
+      <!-- Variables -->
+      <div class="panel-content" id="panel-vars">
+        <div class="output-header">
+          <span>memory after last run</span>
+        </div>
+        <div class="vars-panel" id="vars-panel">
+          <div class="vars-empty">run a program to see its variables</div>
+        </div>
+      </div>
+
+      <!-- Examples -->
+      <div class="panel-content" id="panel-ex">
+        <div class="examples-list" id="examples-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reference view -->
+  <div class="main" id="view-ref" style="display:none;grid-template-columns:1fr 1fr;overflow-y:auto;padding:24px;gap:24px;align-items:start">
+    <div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:4px;color:var(--text)">babbyscript reference</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:20px">every word you need to know</div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">storing values</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">remember</span> name <span style="color:var(--green)">is</span> <span style="color:var(--amber)">"Alice"</span><br>
+          <span style="color:var(--green)">remember</span> age <span style="color:var(--green)">is</span> <span style="color:var(--blue)">25</span><br>
+          <span style="color:var(--green)">remember</span> happy <span style="color:var(--green)">is</span> <span style="color:var(--purple)">yes</span><br>
+          <span style="color:var(--muted)">— use yes / no for true / false</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">showing things</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">say</span> <span style="color:var(--amber)">"hello!"</span><br>
+          <span style="color:var(--green)">say</span> name<br>
+          <span style="color:var(--green)">say</span> <span style="color:var(--amber)">"you are"</span> age <span style="color:var(--amber)">"years old"</span><br>
+          <span style="color:var(--muted)">— mix text and variables freely</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">making decisions</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">if</span> age <span style="color:var(--green)">is more than</span> 18<br>
+          &nbsp;&nbsp;<span style="color:var(--green)">say</span> <span style="color:var(--amber)">"adult"</span><br>
+          <span style="color:var(--green)">otherwise</span><br>
+          &nbsp;&nbsp;<span style="color:var(--green)">say</span> <span style="color:var(--amber)">"kid"</span><br>
+          <span style="color:var(--green)">done</span><br>
+          <br>
+          <span style="color:var(--muted)">conditions you can use:</span><br>
+          <span style="color:var(--muted)">  x is y &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(equal)</span><br>
+          <span style="color:var(--muted)">  x is not y &nbsp;&nbsp;(not equal)</span><br>
+          <span style="color:var(--muted)">  x is more than y</span><br>
+          <span style="color:var(--muted)">  x is less than y</span><br>
+          <span style="color:var(--muted)">  x and y &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(both true)</span><br>
+          <span style="color:var(--muted)">  x or y &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(either true)</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">repeating things</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">repeat</span> 5 <span style="color:var(--green)">times</span><br>
+          &nbsp;&nbsp;<span style="color:var(--green)">say</span> <span style="color:var(--amber)">"hi!"</span><br>
+          <span style="color:var(--green)">done</span><br>
+          <br>
+          <span style="color:var(--green)">for each</span> fruit <span style="color:var(--green)">in</span> apples oranges bananas<br>
+          &nbsp;&nbsp;<span style="color:var(--green)">say</span> fruit<br>
+          <span style="color:var(--green)">done</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">teaching new tricks</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">teach</span> greet person<br>
+          &nbsp;&nbsp;<span style="color:var(--green)">say</span> <span style="color:var(--amber)">"hello,"</span> person<br>
+          <span style="color:var(--green)">done</span><br>
+          <br>
+          <span style="color:var(--green)">do</span> greet <span style="color:var(--amber)">"Alice"</span><br>
+          <span style="color:var(--green)">do</span> greet <span style="color:var(--amber)">"Bob"</span><br>
+          <br>
+          <span style="color:var(--muted)">— teach gives it a name</span><br>
+          <span style="color:var(--muted)">— do runs it</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">lists</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">remember</span> colors <span style="color:var(--green)">is</span> red green blue<br>
+          <span style="color:var(--green)">add</span> yellow <span style="color:var(--green)">to</span> colors<br>
+          <span style="color:var(--green)">remove</span> red <span style="color:var(--green)">from</span> colors<br>
+          <span style="color:var(--green)">say</span> colors
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">maths</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">remember</span> total <span style="color:var(--green)">is</span> 10 + 5<br>
+          <span style="color:var(--green)">remember</span> score <span style="color:var(--green)">is</span> score + 1<br>
+          <span style="color:var(--green)">remember</span> half <span style="color:var(--green)">is</span> total / 2<br>
+          <br>
+          <span style="color:var(--muted)">operators: + - * /</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">complete example</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--muted)">counting to 10 with fizzbuzz:</span><br><br>
+          <span style="color:var(--green)">remember</span> n <span style="color:var(--green)">is</span> 1<br>
+          <span style="color:var(--green)">repeat</span> 10 <span style="color:var(--green)">times</span><br>
+          &nbsp;&nbsp;<span style="color:var(--green)">if</span> n <span style="color:var(--green)">is more than</span> 0<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--green)">say</span> n<br>
+          &nbsp;&nbsp;<span style="color:var(--green)">done</span><br>
+          &nbsp;&nbsp;<span style="color:var(--green)">remember</span> n <span style="color:var(--green)">is</span> n + 1<br>
+          <span style="color:var(--green)">done</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Editor helpers ──
+const editor = document.getElementById('editor');
+const lineNums = document.getElementById('line-nums');
+
+function updateLineNums() {
+  const lines = editor.value.split('\n').length;
+  lineNums.textContent = Array.from({length: lines}, (_, i) => i + 1).join('\n');
+}
+
+function syncScroll() {
+  lineNums.scrollTop = editor.scrollTop;
+}
+
+function onEditorInput() {
+  updateLineNums();
+  document.querySelector('.file-dot').style.background = 'var(--amber)';
+}
+
+function onEditorKey(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    runCode();
+    return;
+  }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.slice(0, start) + '  ' + editor.value.slice(end);
+    editor.selectionStart = editor.selectionEnd = start + 2;
+    updateLineNums();
+  }
+}
+
+function insertSnippet(text) {
+  const start = editor.selectionStart;
+  const before = editor.value.slice(0, start);
+  const after = editor.value.slice(editor.selectionEnd);
+  const needsNewline = before.length > 0 && !before.endsWith('\n');
+  const insert = (needsNewline ? '\n' : '') + text;
+  editor.value = before + insert + after;
+  editor.selectionStart = editor.selectionEnd = start + insert.length;
+  editor.focus();
+  updateLineNums();
+}
+
+function clearAll() {
+  editor.value = '';
+  document.getElementById('output').innerHTML = '<span class="out-empty">press run to see output here</span>';
+  document.getElementById('err-banner').classList.remove('show');
+  document.getElementById('err-banner').textContent = '';
+  document.getElementById('status-dot').className = 'status-dot';
+  document.getElementById('status-text').textContent = 'ready';
+  document.getElementById('vars-panel').innerHTML = '<div class="vars-empty">run a program to see its variables</div>';
+  updateLineNums();
+  editor.focus();
+}
+
+function switchTab(t) {
+  document.getElementById('view-editor').style.display = t === 'editor' ? 'grid' : 'none';
+  document.getElementById('view-ref').style.display = t === 'ref' ? 'grid' : 'none';
+  document.getElementById('tab-editor').classList.toggle('active', t === 'editor');
+  document.getElementById('tab-ref').classList.toggle('active', t === 'ref');
+}
+
+function switchPTab(t) {
+  ['out','vars','ex'].forEach(id => {
+    document.getElementById('ptab-'+id).classList.toggle('active', id === t);
+    document.getElementById('panel-'+id).classList.toggle('active', id === t);
+  });
+}
+
+// ── Interpreter ──
+function runCode() {
+  const src = editor.value;
+  const dot = document.getElementById('status-dot');
+  const statusText = document.getElementById('status-text');
+  const outputEl = document.getElementById('output');
+  const errBanner = document.getElementById('err-banner');
+
+  dot.className = 'status-dot running';
+  statusText.textContent = 'running…';
+  errBanner.classList.remove('show');
+
+  setTimeout(() => {
+    try {
+      const {lines, vars} = interpret(src);
+      outputEl.innerHTML = lines.length === 0
+        ? '<span class="out-empty">(no output — try adding a say command)</span>'
+        : lines.map(l => `<span class="out-line ${l.cls}">${esc(l.text)}</span>`).join('\n');
+      dot.className = 'status-dot ok';
+      statusText.textContent = `done — ${lines.length} line${lines.length !== 1 ? 's' : ''}`;
+      errBanner.classList.remove('show');
+      document.querySelector('.file-dot').style.background = 'var(--green)';
+      renderVars(vars);
+    } catch(e) {
+      outputEl.innerHTML = `<span class="out-err">oops: ${esc(e.message)}</span>`;
+      errBanner.textContent = e.message;
+      errBanner.classList.add('show');
+      dot.className = 'status-dot err';
+      statusText.textContent = 'error';
+      document.querySelector('.file-dot').style.background = 'var(--red)';
+    }
+    switchPTab('out');
+  }, 60);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function valClass(v) {
+  if (typeof v === 'boolean') return 'out-bool';
+  if (typeof v === 'number') return 'out-num';
+  if (Array.isArray(v)) return 'out-arr';
+  return 'out-ok';
+}
+
+function renderVars(vars) {
+  const panel = document.getElementById('vars-panel');
+  const entries = Object.entries(vars);
+  if (entries.length === 0) {
+    panel.innerHTML = '<div class="vars-empty">no variables used</div>';
+    return;
+  }
+  panel.innerHTML = entries.map(([k, v]) => {
+    const type = Array.isArray(v) ? 'list' : typeof v === 'boolean' ? 'bool' : typeof v;
+    const display = Array.isArray(v) ? '[' + v.join(', ') + ']' : String(v);
+    return `<div class="var-row"><span class="var-name">${esc(k)}</span><span class="var-val">${esc(display)}</span><span class="var-type">${type}</span></div>`;
+  }).join('');
+}
+
+function interpret(src) {
+  const output = [];
+  const vars = {};
+  const fns = {};
+
+  const rawLines = src.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  function resolveVal(tok, env) {
+    const t = String(tok || '').trim();
+    if (!t) return '';
+    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) return t.slice(1, -1);
+    if (t === 'yes') return true;
+    if (t === 'no') return false;
+    if (!isNaN(t) && t !== '') return parseFloat(t);
+    if (env && t in env) return env[t];
+    if (t in vars) return vars[t];
+    return t;
+  }
+
+  function evalExpr(tokens, env) {
+    if (!tokens || tokens.length === 0) return '';
+    const joined = tokens.join(' ');
+
+    // handle multi-item list (no quotes, no operator) → array
+    const allSimple = tokens.every(t => !t.match(/^["']/) && isNaN(t) && t !== '+' && t !== '-' && t !== '*' && t !== '/' && t !== 'and' && t !== 'or');
+    if (tokens.length > 1 && allSimple) {
+      const vals = tokens.map(t => resolveVal(t, env));
+      if (vals.every(v => typeof v !== 'object')) return vals;
+    }
+
+    // arithmetic
+    const addM = joined.match(/^(.+?)\s*\+\s*(.+)$/);
+    if (addM) {
+      const a = resolveVal(addM[1].trim(), env), b = resolveVal(addM[2].trim(), env);
+      if (typeof a === 'number' && typeof b === 'number') return a + b;
+      return String(a === true ? 'yes' : a === false ? 'no' : a) + String(b === true ? 'yes' : b === false ? 'no' : b);
+    }
+    const subM = joined.match(/^(.+?)\s*-\s*(.+)$/);
+    if (subM) return (parseFloat(resolveVal(subM[1].trim(), env)) || 0) - (parseFloat(resolveVal(subM[2].trim(), env)) || 0);
+    const mulM = joined.match(/^(.+?)\s*\*\s*(.+)$/);
+    if (mulM) return (parseFloat(resolveVal(mulM[1].trim(), env)) || 0) * (parseFloat(resolveVal(mulM[2].trim(), env)) || 0);
+    const divM = joined.match(/^(.+?)\s*\/\s*(.+)$/);
+    if (divM) return (parseFloat(resolveVal(divM[1].trim(), env)) || 0) / (parseFloat(resolveVal(divM[2].trim(), env)) || 1);
+
+    if (tokens.length === 1) return resolveVal(tokens[0], env);
+    return tokens.map(t => resolveVal(t, env)).join(' ');
+  }
+
+  function evalCond(str, env) {
+    const moreM = str.match(/^(.+?)\s+is more than\s+(.+)$/i);
+    if (moreM) return resolveVal(moreM[1].trim(), env) > resolveVal(moreM[2].trim(), env);
+    const lessM = str.match(/^(.+?)\s+is less than\s+(.+)$/i);
+    if (lessM) return resolveVal(lessM[1].trim(), env) < resolveVal(lessM[2].trim(), env);
+    const notM = str.match(/^(.+?)\s+is not\s+(.+)$/i);
+    if (notM) return resolveVal(notM[1].trim(), env) !== resolveVal(notM[2].trim(), env);
+    const isM = str.match(/^(.+?)\s+is\s+(.+)$/i);
+    if (isM) return resolveVal(isM[1].trim(), env) == resolveVal(isM[2].trim(), env);
+    const andM = str.match(/^(.+?)\s+and\s+(.+)$/i);
+    if (andM) return evalCond(andM[1].trim(), env) && evalCond(andM[2].trim(), env);
+    const orM = str.match(/^(.+?)\s+or\s+(.+)$/i);
+    if (orM) return evalCond(orM[1].trim(), env) || evalCond(orM[2].trim(), env);
+    return !!resolveVal(str, env);
+  }
+
+  function collectBlock(lines, start) {
+    let depth = 0;
+    const block = [];
+    for (let i = start; i < lines.length; i++) {
+      const lo = lines[i].toLowerCase().trim();
+      if (lo.startsWith('if ') || lo.match(/^repeat\s+/) || lo.startsWith('for each ') || lo.startsWith('teach ')) depth++;
+      if (lo === 'done') {
+        if (depth === 0) return { block, end: i };
+        depth--;
+      }
+      block.push(lines[i]);
+    }
+    return { block, end: lines.length };
+  }
+
+  function execLines(lines, env) {
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (!line) { i++; continue; }
+      const lo = line.toLowerCase();
+
+      // REMEMBER
+      if (lo.startsWith('remember ') && lo.match(/\bis\b/)) {
+        const rest = line.slice('remember '.length);
+        const isIdx = rest.search(/\bis\b/);
+        const varName = rest.slice(0, isIdx).trim();
+        const valPart = rest.slice(isIdx + 2).trim();
+        const toks = valPart.match(/"[^"]*"|'[^']*'|\S+/g) || [];
+        const val = evalExpr(toks, env);
+        env[varName] = val;
+        vars[varName] = val;
+        i++; continue;
+      }
+
+      // SAY
+      if (lo.startsWith('say ')) {
+        const parts = line.slice(4).trim();
+        const segments = parts.match(/"[^"]*"|'[^']*'|\S+/g) || [];
+        const resolved = segments.map(s => {
+          const v = resolveVal(s, env);
+          if (Array.isArray(v)) return '[' + v.join(', ') + ']';
+          if (v === true) return 'yes';
+          if (v === false) return 'no';
+          return String(v);
+        });
+        const text = resolved.join(' ');
+        const firstVal = resolveVal(segments[0], env);
+        let cls = 'out-ok';
+        if (typeof firstVal === 'number') cls = 'out-num';
+        else if (typeof firstVal === 'boolean') cls = 'out-bool';
+        else if (Array.isArray(firstVal)) cls = 'out-arr';
+        output.push({ text, cls });
+        i++; continue;
+      }
+
+      // IF
+      if (lo.startsWith('if ')) {
+        const condStr = line.slice(3).trim();
+        const { block, end } = collectBlock(lines, i + 1);
+        const otherwiseIdx = block.findIndex(l => l.trim().toLowerCase() === 'otherwise');
+        let ifBlock = block, elseBlock = [];
+        if (otherwiseIdx !== -1) {
+          ifBlock = block.slice(0, otherwiseIdx);
+          elseBlock = block.slice(otherwiseIdx + 1);
+        }
+        const childEnv = Object.assign({}, env);
+        if (evalCond(condStr, env)) execLines(ifBlock, childEnv);
+        else if (elseBlock.length) execLines(elseBlock, childEnv);
+        Object.assign(env, childEnv);
+        Object.assign(vars, childEnv);
+        i = end + 1; continue;
+      }
+
+      // REPEAT N TIMES
+      if (lo.match(/^repeat\s+\d+\s+times/)) {
+        const n = parseInt(lo.match(/\d+/)[0]);
+        if (n > 10000) throw new Error('repeat limit is 10,000 — avoid infinite loops!');
+        const { block, end } = collectBlock(lines, i + 1);
+        const childEnv = Object.assign({}, env);
+        for (let r = 0; r < n; r++) execLines(block, childEnv);
+        Object.assign(env, childEnv);
+        Object.assign(vars, childEnv);
+        i = end + 1; continue;
+      }
+
+      // FOR EACH
+      if (lo.startsWith('for each ')) {
+        const m = line.match(/for each\s+(\S+)\s+in\s+(.+)/i);
+        if (m) {
+          const iterVar = m[1];
+          const itemsPart = m[2].trim().match(/"[^"]*"|'[^']*'|\S+/g) || [];
+          const rawItems = itemsPart.map(t => resolveVal(t, env));
+          const items = rawItems.length === 1 && Array.isArray(rawItems[0]) ? rawItems[0] : rawItems;
+          const { block, end } = collectBlock(lines, i + 1);
+          if (items.length > 10000) throw new Error('list too large for for each');
+          const childEnv = Object.assign({}, env);
+          for (const item of items) {
+            childEnv[iterVar] = item;
+            execLines(block, Object.assign({}, childEnv));
+          }
+          Object.assign(env, childEnv);
+          Object.assign(vars, childEnv);
+          i = end + 1; continue;
+        }
+      }
+
+      // TEACH
+      if (lo.startsWith('teach ')) {
+        const parts = line.slice(6).trim().split(/\s+/);
+        const fname = parts[0];
+        const params = parts.slice(1);
+        const { block, end } = collectBlock(lines, i + 1);
+        fns[fname] = { params, block };
+        i = end + 1; continue;
+      }
+
+      // DO
+      if (lo.startsWith('do ')) {
+        const parts = line.slice(3).trim().match(/"[^"]*"|'[^']*'|\S+/g) || [];
+        const fname = parts[0];
+        const args = parts.slice(1);
+        if (!fns[fname]) throw new Error(`"${fname}" hasn't been taught yet — use teach first`);
+        const { params, block } = fns[fname];
+        const fnEnv = Object.assign({}, env);
+        params.forEach((p, idx) => { fnEnv[p] = resolveVal(args[idx] || '', env); });
+        execLines(block, fnEnv);
+        i++; continue;
+      }
+
+      // ADD TO LIST
+      if (lo.startsWith('add ') && lo.includes(' to ')) {
+        const m = line.match(/add\s+(.+?)\s+to\s+(\S+)/i);
+        if (m) {
+          const val = resolveVal(m[1].trim(), env);
+          const listName = m[2].trim();
+          if (!Array.isArray(env[listName])) env[listName] = env[listName] !== undefined ? [env[listName]] : [];
+          env[listName] = [...env[listName], val];
+          vars[listName] = env[listName];
+        }
+        i++; continue;
+      }
+
+      // REMOVE FROM LIST
+      if (lo.startsWith('remove ') && lo.includes(' from ')) {
+        const m = line.match(/remove\s+(.+?)\s+from\s+(\S+)/i);
+        if (m) {
+          const val = resolveVal(m[1].trim(), env);
+          const listName = m[2].trim();
+          if (Array.isArray(env[listName])) {
+            env[listName] = env[listName].filter(x => x !== val);
+            vars[listName] = env[listName];
+          }
+        }
+        i++; continue;
+      }
+
+      i++;
+    }
+  }
+
+  execLines(rawLines, {});
+  return { lines: output, vars };
+}
+
+// ── Examples ──
+const examples = [
+  {
+    title: 'hello world',
+    desc: 'the classic first program',
+    code: `say "hello, world!"`
+  },
+  {
+    title: 'greeting',
+    desc: 'store a name and say hi',
+    code: `remember name is "Alice"
+say "hello," name
+say "nice to meet you!"`
+  },
+  {
+    title: 'counting to 5',
+    desc: 'loop with a counter',
+    code: `remember count is 1
+repeat 5 times
+  say count
+  remember count is count + 1
+done`
+  },
+  {
+    title: 'favourite things',
+    desc: 'loop over a list',
+    code: `remember things is pizza coding music dogs pizza
+
+for each thing in things
+  say "i love" thing
+done`
+  },
+  {
+    title: 'greet everyone',
+    desc: 'teach a reusable trick',
+    code: `teach greet name
+  say "hey," name "!"
+done
+
+do greet "Alice"
+do greet "Bob"
+do greet "Charlie"`
+  },
+  {
+    title: 'simple calculator',
+    desc: 'maths with variables',
+    code: `remember apples is 5
+remember oranges is 3
+remember total is apples + oranges
+
+say "apples:" apples
+say "oranges:" oranges
+say "total fruit:" total`
+  },
+  {
+    title: 'age checker',
+    desc: 'if / otherwise decision',
+    code: `remember age is 15
+
+if age is more than 17
+  say "you can vote!"
+otherwise
+  say "not old enough to vote yet"
+done`
+  },
+  {
+    title: 'times table',
+    desc: 'the 5 times table',
+    code: `remember n is 1
+repeat 10 times
+  remember answer is n * 5
+  say n "× 5 =" answer
+  remember n is n + 1
+done`
+  },
+  {
+    title: 'shopping list',
+    desc: 'build a list and loop it',
+    code: `remember list is bread milk eggs
+
+add butter to list
+add cheese to list
+remove milk from list
+
+say "shopping list:"
+for each item in list
+  say "-" item
+done`
+  },
+  {
+    title: 'guess the vibe',
+    desc: 'nested if checks',
+    code: `remember score is 72
+
+if score is more than 90
+  say "excellent!"
+otherwise
+  if score is more than 60
+    say "pretty good"
+  otherwise
+    say "keep practising"
+  done
+done`
+  },
+];
+
+function loadExamples() {
+  const list = document.getElementById('examples-list');
+  list.innerHTML = examples.map((ex, i) =>
+    `<div class="example-card" onclick="loadExample(${i})">
+      <div class="example-title">${esc(ex.title)}</div>
+      <div class="example-desc">${esc(ex.desc)}</div>
+    </div>`
+  ).join('');
+}
+
+function loadExample(i) {
+  editor.value = examples[i].code;
+  updateLineNums();
+  switchPTab('out');
+  switchTab('editor');
+  editor.focus();
+  document.querySelector('.file-dot').style.background = 'var(--amber)';
+}
+
+// ── Init ──
+loadExamples();
+updateLineNums();
+
+editor.value = `remember name is "world"
+say "hello," name
+
+say "let's count to 5:"
+remember n is 1
+repeat 5 times
+  say n
+  remember n is n + 1
+done
+
+say "done!"`;
+updateLineNums();
+</script>
+</body>
+</html>
