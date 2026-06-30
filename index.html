@@ -399,6 +399,73 @@
     font-family: var(--font-mono);
     color: var(--muted);
   }
+
+  /* ── Ask modal ── */
+  .ask-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .ask-overlay.show { display: flex; }
+  .ask-modal {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 20px 24px;
+    min-width: 320px;
+    max-width: 440px;
+    width: 90%;
+  }
+  .ask-title {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  .ask-question {
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .ask-input {
+    width: 100%;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 9px 12px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    outline: none;
+    caret-color: var(--green);
+    margin-bottom: 14px;
+  }
+  .ask-input:focus { border-color: var(--green); }
+  .ask-progress {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .ask-submit {
+    width: 100%;
+    padding: 9px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .ask-submit:hover { opacity: 0.88; }
 </style>
 </head>
 <body>
@@ -436,6 +503,7 @@
         <button class="snippet-btn" onclick="insertSnippet('teach greet someone\n  say \"hi,\" someone\ndone\n\ndo greet \"world\"')"><span class="snippet-kw">teach</span> a trick</button>
         <button class="snippet-btn" onclick="insertSnippet('remember colors is red green blue\nadd yellow to colors\nsay colors')">list <span class="snippet-kw">add</span></button>
         <button class="snippet-btn" onclick="insertSnippet('remember count is 1\nrepeat 5 times\n  say count\n  remember count is count + 1\ndone')">counter loop</button>
+        <button class="snippet-btn" onclick="insertSnippet('ask \"what is your name?\" into name\nsay \"hello,\" name')"><span class="snippet-kw">ask</span> <span class="snippet-muted">…</span> <span class="snippet-kw">into</span></button>
       </div>
 
       <div class="sidebar-section" style="flex:1;overflow-y:auto">
@@ -451,7 +519,7 @@
         <button class="snippet-btn" onclick="insertSnippet('do ')"><span class="snippet-kw">do</span></button>
         <button class="snippet-btn" onclick="insertSnippet('add  to ')"><span class="snippet-kw">add</span></button>
         <button class="snippet-btn" onclick="insertSnippet('remove  from ')"><span class="snippet-kw">remove</span></button>
-        <button class="snippet-btn" onclick="insertSnippet('ask ')"><span class="snippet-kw">ask</span></button>
+        <button class="snippet-btn" onclick="insertSnippet('ask \"\" into ')"><span class="snippet-kw">ask</span> … <span class="snippet-kw">into</span></button>
       </div>
     </div>
 
@@ -527,6 +595,18 @@
           <span style="color:var(--green)">say</span> name<br>
           <span style="color:var(--green)">say</span> <span style="color:var(--amber)">"you are"</span> age <span style="color:var(--amber)">"years old"</span><br>
           <span style="color:var(--muted)">— mix text and variables freely</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-weight:600">asking questions</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;font-family:var(--font-mono);font-size:13px;line-height:1.9">
+          <span style="color:var(--green)">ask</span> <span style="color:var(--amber)">"what is your name?"</span> <span style="color:var(--green)">into</span> name<br>
+          <span style="color:var(--green)">say</span> <span style="color:var(--amber)">"hello,"</span> name<br>
+          <br>
+          <span style="color:var(--muted)">— a little popup asks the question</span><br>
+          <span style="color:var(--muted)">— whatever they type gets stored "into" your word</span><br>
+          <span style="color:var(--muted)">— numbers typed in (like 7) work as real numbers</span>
         </div>
       </div>
 
@@ -618,7 +698,64 @@
 
 </div>
 
+<!-- Ask input modal -->
+<div class="ask-overlay" id="ask-overlay">
+  <div class="ask-modal">
+    <div class="ask-title">your program is asking...</div>
+    <div class="ask-progress" id="ask-progress"></div>
+    <div class="ask-question" id="ask-question"></div>
+    <input class="ask-input" id="ask-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onkeydown="askKey(event)" placeholder="type your answer here...">
+    <button class="ask-submit" onclick="askSubmit()">answer →</button>
+  </div>
+</div>
+
 <script>
+// ── Ask system ──
+let askQueue = [];
+let askAnswers = {};
+let askCallback = null;
+
+function findAskLines(src) {
+  const lines = src.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const questions = [];
+  for (const line of lines) {
+    const lo = line.toLowerCase();
+    if (lo.startsWith('ask ')) {
+      const m = line.match(/ask\s+(".*?"|'.*?'|.+?)\s+into\s+(\S+)/i);
+      if (m) {
+        let q = m[1].trim();
+        if ((q.startsWith('"') && q.endsWith('"')) || (q.startsWith("'") && q.endsWith("'"))) q = q.slice(1,-1);
+        questions.push({ question: q, varName: m[2].trim() });
+      }
+    }
+  }
+  return questions;
+}
+
+function askKey(e) { if (e.key === 'Enter') askSubmit(); }
+
+function askSubmit() {
+  const val = document.getElementById('ask-input').value;
+  if (askQueue.length === 0) return;
+  const current = askQueue.shift();
+  askAnswers[current.varName] = val;
+  if (askQueue.length > 0) {
+    showNextAsk();
+  } else {
+    document.getElementById('ask-overlay').classList.remove('show');
+    askCallback && askCallback(askAnswers);
+  }
+}
+
+function showNextAsk() {
+  const total = Object.keys(askAnswers).length + askQueue.length;
+  const current = Object.keys(askAnswers).length + 1;
+  document.getElementById('ask-progress').textContent = `question ${current} of ${total}`;
+  document.getElementById('ask-question').textContent = askQueue[0].question;
+  document.getElementById('ask-input').value = '';
+  setTimeout(() => document.getElementById('ask-input').focus(), 50);
+}
+
 // ── Editor helpers ──
 const editor = document.getElementById('editor');
 const lineNums = document.getElementById('line-nums');
@@ -703,27 +840,46 @@ function runCode() {
   statusText.textContent = 'running…';
   errBanner.classList.remove('show');
 
-  setTimeout(() => {
-    try {
-      const {lines, vars} = interpret(src);
-      outputEl.innerHTML = lines.length === 0
-        ? '<span class="out-empty">(no output — try adding a say command)</span>'
-        : lines.map(l => `<span class="out-line ${l.cls}">${esc(l.text)}</span>`).join('\n');
-      dot.className = 'status-dot ok';
-      statusText.textContent = `done — ${lines.length} line${lines.length !== 1 ? 's' : ''}`;
-      errBanner.classList.remove('show');
-      document.querySelector('.file-dot').style.background = 'var(--green)';
-      renderVars(vars);
-    } catch(e) {
-      outputEl.innerHTML = `<span class="out-err">oops: ${esc(e.message)}</span>`;
-      errBanner.textContent = e.message;
-      errBanner.classList.add('show');
-      dot.className = 'status-dot err';
-      statusText.textContent = 'error';
-      document.querySelector('.file-dot').style.background = 'var(--red)';
-    }
-    switchPTab('out');
-  }, 60);
+  const questions = findAskLines(src);
+
+  if (questions.length > 0) {
+    askQueue = questions.slice();
+    askAnswers = {};
+    askCallback = (answers) => {
+      executeAndRender(src, answers);
+    };
+    showNextAsk();
+    document.getElementById('ask-overlay').classList.add('show');
+  } else {
+    setTimeout(() => executeAndRender(src, {}), 60);
+  }
+}
+
+function executeAndRender(src, presetAnswers) {
+  const dot = document.getElementById('status-dot');
+  const statusText = document.getElementById('status-text');
+  const outputEl = document.getElementById('output');
+  const errBanner = document.getElementById('err-banner');
+
+  try {
+    const {lines, vars} = interpret(src, presetAnswers);
+    outputEl.innerHTML = lines.length === 0
+      ? '<span class="out-empty">(no output — try adding a say command)</span>'
+      : lines.map(l => `<span class="out-line ${l.cls}">${esc(l.text)}</span>`).join('\n');
+    dot.className = 'status-dot ok';
+    statusText.textContent = `done — ${lines.length} line${lines.length !== 1 ? 's' : ''}`;
+    errBanner.classList.remove('show');
+    document.querySelector('.file-dot').style.background = 'var(--green)';
+    renderVars(vars);
+  } catch(e) {
+    outputEl.innerHTML = `<span class="out-err">oops: ${esc(e.message)}</span>`;
+    errBanner.textContent = e.message;
+    errBanner.classList.add('show');
+    dot.className = 'status-dot err';
+    statusText.textContent = 'error';
+    document.querySelector('.file-dot').style.background = 'var(--red)';
+  }
+  switchPTab('out');
 }
 
 function esc(s) {
@@ -751,10 +907,11 @@ function renderVars(vars) {
   }).join('');
 }
 
-function interpret(src) {
+function interpret(src, presetAnswers) {
   const output = [];
   const vars = {};
   const fns = {};
+  const answers = presetAnswers || {};
 
   const rawLines = src.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
@@ -868,6 +1025,25 @@ function interpret(src) {
         else if (typeof firstVal === 'boolean') cls = 'out-bool';
         else if (Array.isArray(firstVal)) cls = 'out-arr';
         output.push({ text, cls });
+        i++; continue;
+      }
+
+      // ASK
+      if (lo.startsWith('ask ') && lo.includes(' into ')) {
+        const m = line.match(/ask\s+(".*?"|'.*?'|.+?)\s+into\s+(\S+)/i);
+        if (m) {
+          let q = m[1].trim();
+          if ((q.startsWith('"') && q.endsWith('"')) || (q.startsWith("'") && q.endsWith("'"))) q = q.slice(1, -1);
+          const varName = m[2].trim();
+          output.push({ text: q, cls: 'out-ok' });
+          let answer = answers[varName] !== undefined ? answers[varName] : '';
+          // auto-detect numbers, yes/no, just like everywhere else in babbyscript
+          if (answer === 'yes') answer = true;
+          else if (answer === 'no') answer = false;
+          else if (answer !== '' && !isNaN(answer)) answer = parseFloat(answer);
+          env[varName] = answer;
+          vars[varName] = answer;
+        }
         i++; continue;
       }
 
@@ -986,6 +1162,19 @@ const examples = [
     title: 'hello world',
     desc: 'the classic first program',
     code: `say "hello, world!"`
+  },
+  {
+    title: 'ask your name',
+    desc: 'get an answer from the user',
+    code: `ask "what is your name?" into name
+say "nice to meet you," name "!"`
+  },
+  {
+    title: 'birthday calculator',
+    desc: 'ask a question, do maths with it',
+    code: `ask "how old are you?" into age
+remember next_year is age + 1
+say "next year you'll be" next_year`
   },
   {
     title: 'greeting',
